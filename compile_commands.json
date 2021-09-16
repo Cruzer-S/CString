@@ -1,0 +1,17 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-I./include",
+      "-I/",
+      "-std=c11",
+      "-o",
+      "build/cstring.o",
+      "source/cstring.c"
+    ],
+    "directory": "/home/mythos/work/Blackbox/CString",
+    "file": "/home/mythos/work/Blackbox/CString/source/cstring.c",
+    "output": "/home/mythos/work/Blackbox/CString/build/cstring.o"
+  }
+]
