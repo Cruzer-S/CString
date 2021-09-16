@@ -1,0 +1,2 @@
+# CString
+CString Library
