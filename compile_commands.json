@@ -5,6 +5,7 @@
       "-c",
       "-I./include",
       "-I/",
+      "-I../list/include",
       "-std=c11",
       "-o",
       "build/cstring.o",
