@@ -1,136 +1,248 @@
 #include "cstring.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+#undef cstring_create
+#undef cstring_compare
+#undef cstring_append
+#undef cstring_set
+
 #include <string.h>
+#include <stdlib.h>
+#include <stddef.h>
 
-#include "list.h"
-
-#define GET_HEADER(CSTR) ((struct header *) ((CSTR) - HEADER_SIZE))
-#define GET_STRING(HEADER) ((char *) ((HEADER) + HEADER_SIZE))
-
-#define DEFAULT_SIZE 1024
-#define INCREMENT_SIZE (DEFAULT_SIZE * 4)
-#define HEADER_SIZE sizeof(struct header)
-
-struct header {
-	int allocated;
-	int used;
+struct cstring {
+	size_t memsize;
+	size_t length;
+	/* char string[length + 1]; */
 };
 
-static int measure_alloc_size(int string_len);
+#define TO_STRING(STRUCT) ( (char *) ( (void *) (STRUCT) + sizeof(struct cstring) ) )
+#define TO_STRUCT(STRING) ( (struct cstring *) ((STRING) - sizeof(struct cstring) ) )
 
-CString _cstring_create_string(char *string)
+CString cstring_create(char *s)
 {
-	CString cstring;
-	struct header *header;
-	int alloc_size;
-	int string_len;
+	struct cstring *cstring;
+	size_t length;
 
-	string_len = strlen(string) + 1;
-	alloc_size = measure_alloc_size(string_len);
-
-	cstring = malloc(alloc_size);
+	length = strlen(s);
+	cstring = malloc(sizeof(struct cstring) + length + 1);
 	if (cstring == NULL)
 		return NULL;
 
-	header = GET_HEADER(cstring);
-	header->allocated = header->used = string_len;
+	cstring->length = length;
+	cstring->memsize = sizeof(struct cstring) + length + 1;
+	memcpy(TO_STRING(cstring), s, length + 1);
 
-	memcpy(GET_STRING(header), string, string_len);
-
-	return GET_STRING(header);
+	return TO_STRING(cstring);
 }
 
-CString _cstring_create_cstring(CString cstring)
+CString cstring_create_from(CString c)
 {
-	return _cstring_create_string(CTOS(cstring));
+	struct cstring *cstring;
+	size_t length;
+
+	length = TO_STRUCT(c)->length;
+	cstring = malloc(sizeof(struct cstring) + length + 1);
+	if (cstring == NULL)
+		return NULL;
+
+	cstring->length = length;
+	cstring->memsize = sizeof(struct cstring) + length + 1;
+	memcpy(cstring, TO_STRUCT(c), sizeof(struct cstring) + length + 1);
+
+	return TO_STRING(cstring);
 }
 
-CString _cstring_copy_string(CString *origin, char *dest)
+CString cstring_create_empty(void)
 {
-	struct header *header;
-	int destlen;
+	struct cstring *cstring = malloc(sizeof(struct cstring) + 1);
+	if (cstring == NULL)
+		return NULL;
 
-	header = GET_HEADER(*origin);
-	destlen = strlen(dest) + 1;
+	cstring->length = 0;
+	cstring->memsize = sizeof(struct cstring) + 1;
+	TO_STRING(cstring)[0] = '\0';
 
-	if (header->allocated < destlen) {
-		char *newptr;
-		int newsize;
+	return TO_STRING(cstring);
+}
 
-		newsize = measure_alloc_size(destlen);
-		header = realloc(header, newsize);
-		if (header == NULL)
+bool cstring_ncompare(CString c1, CString c2, size_t length)
+{
+	struct cstring *cstr1, *cstr2;
+
+	cstr1 = TO_STRUCT(c1);
+	cstr2 = TO_STRUCT(c2);
+
+	if (cstr1->length <= length && cstr2->length <= length)
+		if (cstr1->length != cstr2->length)
+			return false;
+
+	return !memcmp(c1, c2, length);
+}
+
+bool cstring_ncompare_to_string(CString c, char *s, size_t length)
+{
+	struct cstring *cstr = TO_STRUCT(c);
+	size_t slen = strlen(s);
+
+	if (cstr->length <= length && slen <= length)
+		if (cstr->length != slen)
+			return false;
+
+	return !memcmp(c, s, length);
+}
+
+bool cstring_compare(CString c1, CString c2)
+{
+	struct cstring *cstr1, *cstr2;
+
+	cstr1 = TO_STRUCT(c1);
+	cstr2 = TO_STRUCT(c2);
+
+	if (cstr1->length != cstr2->length)
+		return false;
+
+	return !memcmp(c1, c2, cstr1->length);
+}
+
+bool cstring_compare_to_string(CString c, char *s)
+{
+	struct cstring *cstring = TO_STRUCT(c);
+	size_t length = strlen(s);
+
+	if (cstring->length != length)
+		return false;
+
+	return !memcmp(c, s, length);
+}
+
+CString cstring_append(CString c1, CString c2)
+{
+	struct cstring *cstr1 = TO_STRUCT(c1),
+		       *cstr2 = TO_STRUCT(c2);
+	struct cstring *result;
+	char *copy = NULL;
+
+	int prev_len = cstr1->length;
+	int apnd_len = prev_len + cstr2->length;
+
+	if (c1 == c2) {
+		copy = malloc(cstr2->length);
+		if (copy == NULL)
 			return NULL;
 
-		if (GET_STRING(header) != *origin)
-			*origin = GET_STRING(header);
-
-		header->allocated = newsize;
+		memcpy(copy, c2, cstr2->length);
 	}
 
-	header->used = destlen;
+	if (cstr1->memsize - sizeof(struct cstring) < apnd_len + 1) {
+		result = realloc(cstr1, sizeof(struct cstring) + apnd_len + 1);
+		if (result == NULL) {
+			if (copy != NULL)
+				free(copy);
 
-	memcpy(GET_STRING(header), dest, destlen);
-
-	return GET_STRING(header);
-}
-
-CString _cstring_copy_cstring(CString *origin, CString *dest)
-{
-	return _cstring_copy_string(origin, CTOS(dest));
-}
-
-int _cstring_append_string(CString *origin, char *append)
-{
-	struct header *header;
-	int appendlen, require;
-
-	header = GET_HEADER(origin);
-	appendlen = strlen(append) + 1;
-
-	// both `appendlen` and `header->used` include null-character
-	require = appendlen + header->used - 1;
-
-	if (require > header->allocated) {
-		realloc(header, cstring_get_newsize(require));
+			return NULL;
+		}
 	}
 
-	return 0;
+	result->length = apnd_len;
+	memcpy(TO_STRING(result) + prev_len, copy == NULL ? c2 : copy, apnd_len - prev_len + 1);
+
+	free(copy);
+
+	return TO_STRING(result);
 }
 
-int _cstring_append_cstring(CString origin, CString *append)
+CString cstring_append_string(CString c, char *s)
 {
-	return 0;
+	struct cstring *cstring = TO_STRUCT(c);
+	struct cstring *result;
+
+	int prev_len = cstring->length;
+	int apnd_len = prev_len + strlen(s);
+
+	if (cstring->memsize - sizeof(struct cstring) < apnd_len + 1) {
+		result = realloc(cstring, sizeof(struct cstring) + apnd_len + 1);
+		if (result == NULL)
+			return NULL;
+	}
+
+	result->length = apnd_len;
+	memcpy(TO_STRING(result) + prev_len, s, apnd_len - prev_len + 1);
+
+	return TO_STRING(result);
 }
 
-int cstring_length(CString cstring)
+
+CString cstring_set(CString c1, CString c2)
 {
-	return GET_HEADER(cstring)->used;
+	struct cstring *cstr1 = TO_STRUCT(c1),
+		       *cstr2 = TO_STRUCT(c2);
+
+	if (c1 == c2)
+		return c1;
+
+	if (cstr1->memsize < cstr2->memsize) {
+		cstr1 = realloc(cstr1, cstr2->memsize);
+		if (cstr1 == NULL)
+			return NULL;
+	
+		cstr1->memsize = cstr2->memsize;
+	}
+
+	cstr1->length = cstr2->length;
+
+	memcpy(TO_STRING(cstr1), c2, cstr2->length + 1);
+
+	return TO_STRING(cstr1);
 }
 
-int _cstring_compare_string(CString cstr, char* str)
+CString cstring_set_to_string(CString c, char *s)
 {
-	return 0;
+	struct cstring *cstring = TO_STRUCT(c);
+	int length = strlen(s);
+
+	if (cstring->memsize - sizeof(struct cstring) < length) {
+		cstring = realloc(cstring, length + sizeof(struct cstring));
+		if (cstring == NULL)
+			return NULL;
+
+		cstring->memsize = length + sizeof(struct cstring);
+	}
+
+	cstring->length = length;
+	memcpy(TO_STRING(cstring), s, length + 1);
+
+	return TO_STRING(cstring);
 }
 
-int _cstring_compare_cstring(CString cstr1, CString cstr2)
+CString cstring_slice(CString c, size_t s, size_t e)
 {
-	return 0;
+	struct cstring *cstring = TO_STRUCT(c);
+
+	if (s > cstring->length || e > cstring->length)
+		return NULL;
+
+	if (s >= e)
+		return NULL;
+
+	memcpy(TO_STRING(cstring), &TO_STRING(cstring)[s], e - s);
+	TO_STRING(cstring)[e - 1] = '\0';
+
+	cstring->length = e - s;
+
+	return c;
 }
 
-void cstring_destroy(CString cstring)
+CString cstring_clear(CString c)
 {
-	free(GET_HEADER(cstring));
+	struct cstring *cstring = TO_STRUCT(c);
+
+	cstring->length = 0;
+	C2S(c)[0] = '\0';
+
+	return NULL;
 }
 
-// ====================================================================================
-static int measure_alloc_size(int string_len)
+void cstring_destroy(CString c)
 {
-	int newsize = (string_len / INCREMENT_SIZE) + 1;
-
-	newsize = newsize * INCREMENT_SIZE;
-
-	return newsize + HEADER_SIZE;
+	free(TO_STRUCT(c));
 }
