@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "cmacro/cmacro.h"
+#include "Cruzer-S/cmacro/cmacro.h"
 
 #define C2S(C) ( (char *) (C) )
 
