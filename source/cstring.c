@@ -18,38 +18,42 @@ struct cstring {
 #define TO_STRING(STRUCT) ( (char *) ( (void *) (STRUCT) + sizeof(struct cstring) ) )
 #define TO_STRUCT(STRING) ( (struct cstring *) ((STRING) - sizeof(struct cstring) ) )
 
-CString cstring_create(char *s)
+/******************************************************************************
+ * cstring_create series                                                      *
+ *****************************************************************************/
+CString cstring_create(char *string)
 {
 	struct cstring *cstring;
-	size_t length;
+	size_t length, memsize;
 
-	length = strlen(s);
-	cstring = malloc(sizeof(struct cstring) + length + 1);
+	length = strlen(string);
+	memsize = sizeof(struct cstring) + length + 1;
+
+	cstring = malloc(memsize);
 	if (cstring == NULL)
 		return NULL;
 
 	cstring->length = length;
-	cstring->memsize = sizeof(struct cstring) + length + 1;
-	memcpy(TO_STRING(cstring), s, length + 1);
+	cstring->memsize = memsize;
+
+	memcpy(TO_STRING(cstring), string, length + 1);
 
 	return TO_STRING(cstring);
 }
 
-CString cstring_create_from(CString c)
+CString cstring_create_from(CString cstring)
 {
-	struct cstring *cstring;
-	size_t length;
+	struct cstring *new, *origin;
 
-	length = TO_STRUCT(c)->length;
-	cstring = malloc(sizeof(struct cstring) + length + 1);
-	if (cstring == NULL)
+	origin = TO_STRUCT(cstring);
+
+	new = malloc(origin->memsize);
+	if (new == NULL)
 		return NULL;
 
-	cstring->length = length;
-	cstring->memsize = sizeof(struct cstring) + length + 1;
-	memcpy(cstring, TO_STRUCT(c), sizeof(struct cstring) + length + 1);
+	memcpy(new, TO_STRUCT(origin), origin->memsize);
 
-	return TO_STRING(cstring);
+	return TO_STRING(new);
 }
 
 CString cstring_create_empty(void)
@@ -60,14 +64,27 @@ CString cstring_create_empty(void)
 
 	cstring->length = 0;
 	cstring->memsize = sizeof(struct cstring) + 1;
+
 	TO_STRING(cstring)[0] = '\0';
 
 	return TO_STRING(cstring);
 }
-
-bool cstring_ncompare(CString c1, CString c2, size_t length)
+/******************************************************************************
+ * cstring_compare series                                                     *
+ *****************************************************************************/
+bool cstring_compare(CString o, CString t)
 {
-	struct cstring *cstr1, *cstr2;
+	struct cstring *origin = TO_STRUCT(o), *target = TO_STRUCT(t);
+
+	if (origin->length != target->length)
+		return false;
+
+	return !memcmp(TO_STRING(origin), TO_STRING(target), origin->length);
+}
+
+bool cstring_ncompare(CString o, CString t, size_t length)
+{
+	struct cstring *origin, *target;
 
 	cstr1 = TO_STRUCT(c1);
 	cstr2 = TO_STRUCT(c2);
@@ -89,19 +106,6 @@ bool cstring_ncompare_to_string(CString c, char *s, size_t length)
 			return false;
 
 	return !memcmp(c, s, length);
-}
-
-bool cstring_compare(CString c1, CString c2)
-{
-	struct cstring *cstr1, *cstr2;
-
-	cstr1 = TO_STRUCT(c1);
-	cstr2 = TO_STRUCT(c2);
-
-	if (cstr1->length != cstr2->length)
-		return false;
-
-	return !memcmp(c1, c2, cstr1->length);
 }
 
 bool cstring_compare_to_string(CString c, char *s)

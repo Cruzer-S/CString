@@ -27,7 +27,11 @@ void print_cstring(void)
 void compare_string(void)
 {
 	char *compare = "hello";
-	int complen = 5;
+	const int complen = 5;
+
+	// cstr1: NULL
+	// cstr2: "hello world!"
+	// cstr3: "hello world!"
 
 	if (cstring_compare(cstr2, compare))
 		assert("Failed to compare string");
