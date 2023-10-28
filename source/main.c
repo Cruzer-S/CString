@@ -72,9 +72,15 @@ void append_string(void)
 {
 	char *append = "!!!!";
 
+	// cstr1: NULL
+	// cstr2: "hello world!"
+	// cstr3: "hello world!"
+
 	cstr1 = cstring_append(cstr1, cstr2);
 	if (cstr1 == NULL)
 		assert("Failed to append string");
+
+	// cstr1: "hello world!"
 
 	cstr2 = cstring_append(cstr2, cstr2);
 	if (cstr2 == NULL)

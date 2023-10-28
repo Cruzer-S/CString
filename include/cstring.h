@@ -10,9 +10,13 @@
 
 typedef void *CString;
 
+/* if the `string` is `NULL` or not a null terminated string,
+ * then the result of the function is undefined.
+ */
 CString cstring_create(char *string);
-CString cstring_create_empty();
-CString cstring_create_from(CString );
+CString cstring_create_empty(void);
+/* if the `cstring` is `NULL`, then the result of the function is undefined. */
+CString cstring_create_from(CString cstring);
 
 #define cstring_create(...) EXCONCAT(cstring_create_, NARGS(__VA_ARGS__))(__VA_ARGS__)
 #define cstring_create_0 cstring_create_empty
@@ -22,10 +26,22 @@ CString cstring_create_from(CString );
 	default: NULL				\
 ))
 
-bool cstring_compare(CString, CString );
-bool cstring_compare_to_string(CString, char *);
-bool cstring_ncompare(CString, CString, size_t );
-bool cstring_ncompare_to_string(CString ,char *, size_t);
+/* Both `origin` and `target` have to be created by `cstring_create_###`,
+ * if not so, the result of the function is undefined.
+ */
+bool cstring_compare(CString origin, CString target);
+bool cstring_compare_to_string(CString origin, char *target);
+/* `length` must be less than or equal to the length of the `target`
+ * (without '\0'). if not so, the result of the function is undefined.
+ */
+bool cstring_ncompare(CString origin, CString target, size_t length);
+/* - `length` must be less than or equal to the length of `target`
+ *   (without '\0'). if not so, behavior of the function is undefined.
+ *
+ * - `target` have to be null terminated string. Otherwise, the result of the
+ *   function is undefined.
+ */
+bool cstring_ncompare_to_string(CString origin, char *target, size_t length);
 
 #define cstring_compare(...) EXCONCAT(cstring_compare_, NARGS(__VA_ARGS__))(__VA_ARGS__)
 #define cstring_compare_2(A, B) (_Generic((B),		\
@@ -61,5 +77,7 @@ CString cstring_set_to_string(CString, char *);
 ))
 
 void cstring_destroy(CString );
+
+size_t cstring_length(CString );
 
 #endif

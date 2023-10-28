@@ -5,6 +5,7 @@
 #undef cstring_append
 #undef cstring_set
 
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -15,9 +16,10 @@ struct cstring {
 	/* char string[length + 1]; */
 };
 
-#define TO_STRING(STRUCT) ( (char *) ( (void *) (STRUCT) + sizeof(struct cstring) ) )
-#define TO_STRUCT(STRING) ( (struct cstring *) ((STRING) - sizeof(struct cstring) ) )
-
+#define SSIZE ( sizeof(struct cstring) )
+#define TO_STRING(STRUCT) ( (char *) (((void *) (STRUCT)) + SSIZE) )
+#define TO_STRUCT(STRING) ( (struct cstring *) (STRING - SSIZE) )
+#define REMAIN_LEN(STRUCT) ( (STRUCT)->memsize - SSIZE - ((STRUCT)->length + 1) )
 /******************************************************************************
  * cstring_create series                                                      *
  *****************************************************************************/
@@ -27,7 +29,7 @@ CString cstring_create(char *string)
 	size_t length, memsize;
 
 	length = strlen(string);
-	memsize = sizeof(struct cstring) + length + 1;
+	memsize = SSIZE + length + 1;
 
 	cstring = malloc(memsize);
 	if (cstring == NULL)
@@ -41,29 +43,29 @@ CString cstring_create(char *string)
 	return TO_STRING(cstring);
 }
 
-CString cstring_create_from(CString cstring)
+CString cstring_create_from(CString o)
 {
-	struct cstring *new, *origin;
-
-	origin = TO_STRUCT(cstring);
+	struct cstring *new, *origin = TO_STRUCT(o);
 
 	new = malloc(origin->memsize);
 	if (new == NULL)
 		return NULL;
 
-	memcpy(new, TO_STRUCT(origin), origin->memsize);
+	memcpy(new, origin, origin->memsize);
 
 	return TO_STRING(new);
 }
 
 CString cstring_create_empty(void)
 {
-	struct cstring *cstring = malloc(sizeof(struct cstring) + 1);
+	struct cstring *cstring;
+
+	cstring = malloc(SSIZE + 1);
 	if (cstring == NULL)
 		return NULL;
 
 	cstring->length = 0;
-	cstring->memsize = sizeof(struct cstring) + 1;
+	cstring->memsize = SSIZE + 1;
 
 	TO_STRING(cstring)[0] = '\0';
 
@@ -84,95 +86,88 @@ bool cstring_compare(CString o, CString t)
 
 bool cstring_ncompare(CString o, CString t, size_t length)
 {
-	struct cstring *origin, *target;
+	struct cstring *origin = TO_STRUCT(o), *target = TO_STRUCT(t);
 
-	cstr1 = TO_STRUCT(c1);
-	cstr2 = TO_STRUCT(c2);
-
-	if (cstr1->length <= length && cstr2->length <= length)
-		if (cstr1->length != cstr2->length)
-			return false;
-
-	return !memcmp(c1, c2, length);
-}
-
-bool cstring_ncompare_to_string(CString c, char *s, size_t length)
-{
-	struct cstring *cstr = TO_STRUCT(c);
-	size_t slen = strlen(s);
-
-	if (cstr->length <= length && slen <= length)
-		if (cstr->length != slen)
-			return false;
-
-	return !memcmp(c, s, length);
-}
-
-bool cstring_compare_to_string(CString c, char *s)
-{
-	struct cstring *cstring = TO_STRUCT(c);
-	size_t length = strlen(s);
-
-	if (cstring->length != length)
+	if (origin->length != target->length)
 		return false;
 
-	return !memcmp(c, s, length);
+	return !memcmp(TO_STRING(origin), TO_STRING(target), length);
 }
 
-CString cstring_append(CString c1, CString c2)
+bool cstring_ncompare_to_string(CString origin, char *target, size_t length)
 {
-	struct cstring *cstr1 = TO_STRUCT(c1),
-		       *cstr2 = TO_STRUCT(c2);
-	struct cstring *result;
-	char *copy = NULL;
-
-	int prev_len = cstr1->length;
-	int apnd_len = prev_len + cstr2->length;
-
-	if (c1 == c2) {
-		copy = malloc(cstr2->length);
-		if (copy == NULL)
-			return NULL;
-
-		memcpy(copy, c2, cstr2->length);
-	}
-
-	if (cstr1->memsize - sizeof(struct cstring) < apnd_len + 1) {
-		result = realloc(cstr1, sizeof(struct cstring) + apnd_len + 1);
-		if (result == NULL) {
-			if (copy != NULL)
-				free(copy);
-
-			return NULL;
-		}
-	}
-
-	result->length = apnd_len;
-	memcpy(TO_STRING(result) + prev_len, copy == NULL ? c2 : copy, apnd_len - prev_len + 1);
-
-	free(copy);
-
-	return TO_STRING(result);
+	return !memcmp(origin, target, length);
 }
 
-CString cstring_append_string(CString c, char *s)
+bool cstring_compare_to_string(CString o, char *target)
 {
-	struct cstring *cstring = TO_STRUCT(c);
-	struct cstring *result;
+	struct cstring *origin = TO_STRUCT(o);
+	size_t target_len = strlen(target);
 
-	int prev_len = cstring->length;
-	int apnd_len = prev_len + strlen(s);
+	if (origin->length != target_len)
+		return false;
 
-	if (cstring->memsize - sizeof(struct cstring) < apnd_len + 1) {
-		result = realloc(cstring, sizeof(struct cstring) + apnd_len + 1);
-		if (result == NULL)
+	return !memcmp(TO_STRING(origin), target, origin->length);
+}
+/******************************************************************************
+ * cstring_compare series                                                     *
+ *****************************************************************************/
+CString cstring_append(CString o, CString a)
+{
+	struct cstring *origin = TO_STRUCT(o), *append = TO_STRUCT(a);
+	void *(*function)(void *, const void *, size_t);
+
+	if (REMAIN_LEN(origin) < append->length) {
+		struct cstring *new_origin;
+		size_t total_len;	
+
+		total_len = SSIZE + origin->length;
+		total_len += append->length + 1;
+
+		new_origin = realloc(origin, total_len);
+		if (new_origin == NULL)
 			return NULL;
+
+		origin = new_origin;
+		origin->memsize = total_len;
 	}
 
-	result->length = apnd_len;
-	memcpy(TO_STRING(result) + prev_len, s, apnd_len - prev_len + 1);
+	function = (origin == append) ? memmove : memcpy;
+	function(
+		TO_STRING(origin) + origin->length,
+		TO_STRING(append),
+		append->length + 1
+	);
 
-	return TO_STRING(result);
+	origin->length = origin->length + append->length;
+
+	return TO_STRING(origin);
+}
+
+CString cstring_append_string(CString o, char *append)
+{
+	struct cstring *origin = TO_STRUCT(o);
+	size_t append_len = strlen(append);
+
+	if (REMAIN_LEN(origin) < append_len) {
+		struct cstring *new_origin;
+		size_t total_len;
+
+		total_len = SSIZE + origin->length;
+		total_len += append_len + 1;
+
+		new_origin = realloc(origin, total_len);
+		if (new_origin == NULL)
+			return NULL;
+
+		origin = new_origin;
+		origin->memsize = total_len;
+	}
+
+	memcpy(TO_STRING(origin), append, append_len + 1);
+	origin->length = origin->length + append_len;
+
+	return origin;
 }
 
 
@@ -204,12 +199,12 @@ CString cstring_set_to_string(CString c, char *s)
 	struct cstring *cstring = TO_STRUCT(c);
 	int length = strlen(s);
 
-	if (cstring->memsize - sizeof(struct cstring) < length) {
-		cstring = realloc(cstring, length + sizeof(struct cstring));
+	if (cstring->memsize - SSIZE < length) {
+		cstring = realloc(cstring, length + SSIZE);
 		if (cstring == NULL)
 			return NULL;
 
-		cstring->memsize = length + sizeof(struct cstring);
+		cstring->memsize = length + SSIZE;
 	}
 
 	cstring->length = length;
@@ -249,4 +244,9 @@ CString cstring_clear(CString c)
 void cstring_destroy(CString c)
 {
 	free(TO_STRUCT(c));
+}
+
+size_t cstring_length(CString cstring)
+{
+	return TO_STRUCT(cstring)->length;
 }
