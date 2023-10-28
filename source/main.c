@@ -7,7 +7,7 @@
 
 static CString cstr1, cstr2, cstr3;
 
-void create_cstring()
+void create_cstring(void)
 {
 	cstr1 = cstring_create();
 	cstr2 = cstring_create("hello world!");
@@ -17,14 +17,14 @@ void create_cstring()
 		assert("Failed to create cstring");
 }
 
-void print_cstring()
+void print_cstring(void)
 {
 	printf("cstr1: %s\n", C2S(cstr1));
 	printf("cstr2: %s\n", C2S(cstr2));
 	printf("cstr3: %s\n", C2S(cstr3));
 }
 
-void compare_string()
+void compare_string(void)
 {
 	char *compare = "hello";
 	int complen = 5;
@@ -50,21 +50,21 @@ void compare_string()
 	printf("\"%.*s\" == \"%.*s\"\n", complen, C2S(cstr2), complen, C2S(cstr3));
 }
 
-void clear_cstring()
+void clear_cstring(void)
 {
 	cstring_clear(cstr1);
 	cstring_clear(cstr2);
 	cstring_clear(cstr3);
 }
 
-void destroy_string()
+void destroy_string(void)
 {
 	cstring_destroy(cstr1);
 	cstring_destroy(cstr2);
 	cstring_destroy(cstr3);
 }
 
-void append_string()
+void append_string(void)
 {
 	char *append = "!!!!";
 
@@ -81,7 +81,7 @@ void append_string()
 		assert("Failed to append string");
 }
 
-void set_cstring()
+void set_cstring(void)
 {
 	cstr1 = cstring_set(cstr1, "hello");
 	if (cstr1 == NULL)
@@ -96,7 +96,7 @@ void set_cstring()
 		assert("Failed to set string");
 }
 
-void slice_cstring()
+void slice_cstring(void)
 {
 	cstr1 = cstring_slice(cstr1, 1, 5);
 	if (cstr1 == NULL)
