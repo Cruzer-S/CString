@@ -11,242 +11,248 @@
 #include <stddef.h>
 
 struct cstring {
-	size_t memsize;
+	size_t allocate;
 	size_t length;
-	/* char string[length + 1]; */
+
+	char *string;
 };
 
-#define SSIZE ( sizeof(struct cstring) )
-#define TO_STRING(STRUCT) ( (char *) (((void *) (STRUCT)) + SSIZE) )
-#define TO_STRUCT(STRING) ( (struct cstring *) (STRING - SSIZE) )
-#define REMAIN_LEN(STRUCT) ( (STRUCT)->memsize - SSIZE - ((STRUCT)->length + 1) )
+#define GET_ALLOC_SIZE(LEN) (						\
+	(((LEN) / CSTRING_ALLOCATE_CHUNK_SIZE)				\
+       + ((LEN) % CSTRING_ALLOCATE_CHUNK_SIZE) != 0)			\
+	* CSTRING_ALLOCATE_CHUNK_SIZE					\
+)
+
+#define IS_COLLAPSED(ORIGIN, TARGET, RANGE) (				\
+	((ORIGIN) <= (TARGET)) && ((TARGET) < (ORIGIN) + (RANGE))	\
+)
+
 /******************************************************************************
  * cstring_create series                                                      *
  *****************************************************************************/
 CString cstring_create(char *string)
 {
-	struct cstring *cstring;
-	size_t length, memsize;
+	CString cstring;
 
-	length = strlen(string);
-	memsize = SSIZE + length + 1;
-
-	cstring = malloc(memsize);
+	cstring = malloc(sizeof(struct cstring));
 	if (cstring == NULL)
 		return NULL;
 
-	cstring->length = length;
-	cstring->memsize = memsize;
+	cstring->length = strlen(string) + 1;
+	cstring->allocate = GET_ALLOC_SIZE(cstring->length);
 
-	memcpy(TO_STRING(cstring), string, length + 1);
+	cstring->string = malloc(cstring->allocate);
+	if (cstring->string == NULL) {
+		free(cstring);
+		return NULL;
+	}
 
-	return TO_STRING(cstring);
+	memcpy(cstring->string, string, cstring->length);
+
+	return cstring;
 }
 
-CString cstring_create_from(CString o)
+CString cstring_create_from(CString origin)
 {
-	struct cstring *new, *origin = TO_STRUCT(o);
+	CString new;
 
-	new = malloc(origin->memsize);
+	new = malloc(sizeof(struct cstring));
 	if (new == NULL)
 		return NULL;
 
-	memcpy(new, origin, origin->memsize);
+	new->allocate = GET_ALLOC_SIZE(origin->length);
+	new->length = origin->length;
 
-	return TO_STRING(new);
+	new->string = malloc(new->allocate);
+	if (new->string == NULL) {
+		free(new);
+		return NULL;
+	}
+	
+	memcpy(new->string, origin->string, origin->length);
+
+	return new;
 }
 
 CString cstring_create_empty(void)
 {
-	struct cstring *cstring;
+	CString cstring;
 
-	cstring = malloc(SSIZE + 1);
+	cstring = malloc(sizeof(struct cstring));
 	if (cstring == NULL)
 		return NULL;
 
-	cstring->length = 0;
-	cstring->memsize = SSIZE + 1;
+	cstring->string = malloc(CSTRING_ALLOCATE_CHUNK_SIZE);
+	if (cstring->string == NULL) {
+		free(cstring);
+		return NULL;
+	}
 
-	TO_STRING(cstring)[0] = '\0';
+	cstring->allocate = CSTRING_ALLOCATE_CHUNK_SIZE;
+	cstring->length = 1;
 
-	return TO_STRING(cstring);
+	*cstring->string = '\0';
+
+	return cstring;
 }
 /******************************************************************************
  * cstring_compare series                                                     *
  *****************************************************************************/
-bool cstring_compare(CString o, CString t)
+bool cstring_compare(CString origin, CString target)
 {
-	struct cstring *origin = TO_STRUCT(o), *target = TO_STRUCT(t);
-
 	if (origin->length != target->length)
 		return false;
 
-	return !memcmp(TO_STRING(origin), TO_STRING(target), origin->length);
+	return memcmp(origin->string, target->string, origin->length);
 }
 
-bool cstring_ncompare(CString o, CString t, size_t length)
+bool cstring_ncompare(CString origin, CString target, size_t length)
 {
-	struct cstring *origin = TO_STRUCT(o), *target = TO_STRUCT(t);
-
-	if (origin->length != target->length)
-		return false;
-
-	return !memcmp(TO_STRING(origin), TO_STRING(target), length);
+	return memcmp(origin->string, target->string, length);
 }
 
 bool cstring_ncompare_to_string(CString origin, char *target, size_t length)
 {
-	return !memcmp(origin, target, length);
+	return memcmp(origin->string, target, length);
 }
 
-bool cstring_compare_to_string(CString o, char *target)
+bool cstring_compare_to_string(CString origin, char *target)
 {
-	struct cstring *origin = TO_STRUCT(o);
 	size_t target_len = strlen(target);
 
 	if (origin->length != target_len)
 		return false;
 
-	return !memcmp(TO_STRING(origin), target, origin->length);
+	return memcmp(origin->string, target, origin->length);
 }
 /******************************************************************************
  * cstring_compare series                                                     *
  *****************************************************************************/
-CString cstring_append(CString o, CString a)
+CString cstring_append(CString origin, CString append)
 {
-	struct cstring *origin = TO_STRUCT(o), *append = TO_STRUCT(a);
-	void *(*function)(void *, const void *, size_t);
+	size_t total_len = (origin->length - 1) + append->length;
+	void *(*func)(void *, const void *, size_t);
 
-	if (REMAIN_LEN(origin) < append->length) {
-		struct cstring *new_origin;
-		size_t total_len;	
+	if (origin->allocate < total_len) {
+		char *new_string = realloc(
+			origin->string, GET_ALLOC_SIZE(total_len)
+		);
 
-		total_len = SSIZE + origin->length;
-		total_len += append->length + 1;
-
-		new_origin = realloc(origin, total_len);
-		if (new_origin == NULL)
+		if (new_string == NULL)
 			return NULL;
 
-		origin = new_origin;
-		origin->memsize = total_len;
+		origin->string = new_string;
 	}
 
-	function = (origin == append) ? memmove : memcpy;
-	function(
-		TO_STRING(origin) + origin->length,
-		TO_STRING(append),
-		append->length + 1
-	);
+	func = IS_COLLAPSED(origin->string, append->string, origin->length)
+	     ? memmove : memcpy;
 
-	origin->length = origin->length + append->length;
-
-	return TO_STRING(origin);
-}
-
-CString cstring_append_string(CString o, char *append)
-{
-	struct cstring *origin = TO_STRUCT(o);
-	size_t append_len = strlen(append);
-
-	if (REMAIN_LEN(origin) < append_len) {
-		struct cstring *new_origin;
-		size_t total_len;
-
-		total_len = SSIZE + origin->length;
-		total_len += append_len + 1;
-
-		new_origin = realloc(origin, total_len);
-		if (new_origin == NULL)
-			return NULL;
-
-		origin = new_origin;
-		origin->memsize = total_len;
-	}
-
-	memcpy(TO_STRING(origin), append, append_len + 1);
-	origin->length = origin->length + append_len;
+	func(&origin->string[origin->length - 1], append->string, append->length);
+	origin->length = total_len;
 
 	return origin;
 }
 
-
-CString cstring_set(CString c1, CString c2)
+CString cstring_append_string(CString origin, char *append)
 {
-	struct cstring *cstr1 = TO_STRUCT(c1),
-		       *cstr2 = TO_STRUCT(c2);
+	size_t append_len = strlen(append) + 1;
+	size_t total_len = (origin->length - 1) + append_len;
+	void *(*func)(void *, const void *, size_t);
 
-	if (c1 == c2)
-		return c1;
+	if (origin->allocate < total_len) {
+		char *new_string = realloc(
+			origin->string, GET_ALLOC_SIZE(total_len)
+		);
 
-	if (cstr1->memsize < cstr2->memsize) {
-		cstr1 = realloc(cstr1, cstr2->memsize);
-		if (cstr1 == NULL)
-			return NULL;
-	
-		cstr1->memsize = cstr2->memsize;
-	}
-
-	cstr1->length = cstr2->length;
-
-	memcpy(TO_STRING(cstr1), c2, cstr2->length + 1);
-
-	return TO_STRING(cstr1);
-}
-
-CString cstring_set_to_string(CString c, char *s)
-{
-	struct cstring *cstring = TO_STRUCT(c);
-	int length = strlen(s);
-
-	if (cstring->memsize - SSIZE < length) {
-		cstring = realloc(cstring, length + SSIZE);
-		if (cstring == NULL)
+		if (new_string == NULL)
 			return NULL;
 
-		cstring->memsize = length + SSIZE;
+		origin->string = new_string;
 	}
 
-	cstring->length = length;
-	memcpy(TO_STRING(cstring), s, length + 1);
+	func = IS_COLLAPSED(origin->string, append, origin->length)
+	     ? memmove : memcpy;
 
-	return TO_STRING(cstring);
+	func(&origin->string[origin->length - 1], append, append_len);
+	origin->length = total_len;
+
+	return origin;
+}
+/******************************************************************************
+ * cstring_set series                                                         *
+ *****************************************************************************/
+CString cstring_set(CString origin, CString target)
+{
+	void *(*func)(void *, const void *, size_t);
+
+	if (origin->allocate < target->length) {
+		char *new_string = realloc(
+			origin->string, GET_ALLOC_SIZE(target->length)
+		);
+
+		if (new_string == NULL)
+			return NULL;
+
+		origin->string = new_string;
+	}
+
+	func = IS_COLLAPSED(origin->string, target->string, origin->length)
+	     ? memmove : memcpy;
+
+	func(origin->string, target->string, target->length);
+	origin->length = target->length;
+
+	return origin;
 }
 
-CString cstring_slice(CString c, size_t s, size_t e)
+CString cstring_set_to_string(CString origin, char *target)
 {
-	struct cstring *cstring = TO_STRUCT(c);
+	size_t target_len = strlen(target) + 1;
+	void *(*func)(void *, const void *, size_t);
 
-	if (s > cstring->length || e > cstring->length)
-		return NULL;
+	if (origin->allocate < target_len) {
+		char *new_string = realloc(
+			origin->string, GET_ALLOC_SIZE(target_len)
+		);
 
-	if (s >= e)
-		return NULL;
+		if (new_string == NULL)
+			return NULL;
 
-	memcpy(TO_STRING(cstring), &TO_STRING(cstring)[s], e - s);
-	TO_STRING(cstring)[e - 1] = '\0';
+		origin->string = new_string;
+	}
 
-	cstring->length = e - s;
+	func = IS_COLLAPSED(origin->string, target, origin->length)
+	     ? memmove : memcpy;
 
-	return c;
+	func(origin->string, target, target_len);
+	origin->length = target_len;
+
+	return origin;
+}
+/******************************************************************************
+ * cstring_### series                                                         *
+ *****************************************************************************/
+CString cstring_slice(CString cstring, size_t start, size_t end)
+{
+	memmove(cstring->string, &cstring->string[start], end - start);
+
+	cstring->string[end - start] = '\0';
+
+	return cstring;
 }
 
-CString cstring_clear(CString c)
+void cstring_destroy(CString cstring)
 {
-	struct cstring *cstring = TO_STRUCT(c);
-
-	cstring->length = 0;
-	C2S(c)[0] = '\0';
-
-	return NULL;
-}
-
-void cstring_destroy(CString c)
-{
-	free(TO_STRUCT(c));
+	free(cstring->string);
+	free(cstring);
 }
 
 size_t cstring_length(CString cstring)
 {
-	return TO_STRUCT(cstring)->length;
+	return cstring->length - 1;
+}
+
+char *cstring_get(CString cstring)
+{
+	return cstring->string;
 }

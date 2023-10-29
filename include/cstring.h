@@ -6,9 +6,9 @@
 
 #include "Cruzer-S/cmacro/cmacro.h"
 
-#define C2S(C) ( (char *) (C) )
+#define CSTRING_ALLOCATE_CHUNK_SIZE BUFSIZ
 
-typedef void *CString;
+typedef struct cstring *CString;
 
 /* if the `string` is `NULL` or not a null terminated string,
  * then the result of the function is undefined.
@@ -21,10 +21,10 @@ CString cstring_create_from(CString cstring);
 #define cstring_create(...) EXCONCAT(cstring_create_, NARGS(__VA_ARGS__))(__VA_ARGS__)
 #define cstring_create_0 cstring_create_empty
 #define cstring_create_1(T) (_Generic((T),	\
-	void *: cstring_create_from(T),		\
-	char *: cstring_create(T),		\
+	CString: cstring_create_from,		\
+	char *: cstring_create,			\
 	default: NULL				\
-))
+)(T))
 
 /* Both `origin` and `target` have to be created by `cstring_create_###`,
  * if not so, the result of the function is undefined.
@@ -45,36 +45,36 @@ bool cstring_ncompare_to_string(CString origin, char *target, size_t length);
 
 #define cstring_compare(...) EXCONCAT(cstring_compare_, NARGS(__VA_ARGS__))(__VA_ARGS__)
 #define cstring_compare_2(A, B) (_Generic((B),		\
-	void *: cstring_compare(A, B),			\
-	char *: cstring_compare_to_string(A, B),	\
+	CString: cstring_compare,			\
+	char *: cstring_compare_to_string,		\
 	default: NULL					\
-))
+)(A, B))
 #define cstring_compare_3(A, B, C) (_Generic((B),	\
-	void *: cstring_ncompare(A, B, C),		\
-	char *: cstring_ncompare_to_string(A, B, C),	\
+	CString: cstring_ncompare,			\
+	char *: cstring_ncompare_to_string,		\
 	default: NULL					\
-))
+)(A, B, C))
 
 CString cstring_append(CString , CString );
 CString cstring_append_string(CString , char *);
 
 #define cstring_append(A, B) (_Generic((B),		\
-	void *: cstring_append(A, B),			\
-	char *: cstring_append_string(A, B),		\
+	CString: cstring_append,			\
+	char *: cstring_append_string,			\
 	default: NULL					\
-))
+)(A, B))
 
-CString cstring_slice(CString, size_t, size_t);
-
-CString cstring_clear(CString );
+char *cstring_get(CString );
 
 CString cstring_set(CString, CString );
 CString cstring_set_to_string(CString, char *);
 #define cstring_set(A, B) (_Generic((B),		\
-	void *: cstring_set(A, B),			\
-	char *: cstring_set_to_string(A, B),		\
+	CString: cstring_set,				\
+	char *: cstring_set_to_string,			\
 	default: NULL					\
-))
+)(A, B))
+
+CString cstring_slice(CString , size_t , size_t );
 
 void cstring_destroy(CString );
 
