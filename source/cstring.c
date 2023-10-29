@@ -230,6 +230,18 @@ CString cstring_set_to_string(CString origin, char *target)
 	return origin;
 }
 /******************************************************************************
+ * cstring_get series                                                         *
+ *****************************************************************************/
+char *cstring_get(CString cstring)
+{
+	return cstring->string;
+}
+
+char cstring_get_at(CString cstring, size_t index)
+{
+	return cstring->string[index];
+}
+/******************************************************************************
  * cstring_### series                                                         *
  *****************************************************************************/
 CString cstring_slice(CString cstring, size_t start, size_t end)
@@ -252,7 +264,32 @@ size_t cstring_length(CString cstring)
 	return cstring->length - 1;
 }
 
-char *cstring_get(CString cstring)
+ptrdiff_t cstring_index(CString cstring, char chr)
 {
-	return cstring->string;
+	char *find = strchr(cstring->string, chr);
+
+	return find == NULL ? -1 : find - cstring->string;
+}
+
+CString cstring_replace(CString cstring, const char *pattern, char replace)
+{
+	size_t shirink = 0;
+
+	for (char *ch = cstring->string; *ch; ch++) {
+		if (shirink > 0)
+			ch[-shirink] = *ch;
+
+		if ( !strchr(pattern, *ch) )
+			continue;
+
+		if (replace == '\0')
+			shirink++;
+		else
+			*ch = replace;
+	}
+
+	cstring->length -= shirink;
+	cstring->string[cstring->length] = '\0';
+
+	return cstring;
 }

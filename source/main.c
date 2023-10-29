@@ -50,11 +50,17 @@ void slice_string(void)
 	assert( !cstring_compare(cstring_slice(cstr3, 11, 16), "!!!!!") );
 }
 
-void set_cstring(void)
+void set_string(void)
 {
-	assert( (cstr1 = cstring_set(cstr1, "hello")) );
+	assert( (cstr1 = cstring_set(cstr1, "hello world! ! !")) );
 	assert( (cstr2 = cstring_set(cstr2, cstr1)) );
-	assert( (cstr3 = cstring_set(cstr3, " world!")) );
+	assert( (cstr3 = cstring_set(cstr3, "hello world!")) );
+}
+
+void replace_string(void)
+{
+	assert ( !cstring_compare(cstring_replace(cstr1, "! ", '\0'), "helloworld") );
+	assert ( !cstring_compare(cstring_replace(cstr3, "o", '0'), "hell0 w0rld!") );
 }
 
 int main(void)
@@ -67,7 +73,9 @@ int main(void)
 
 	slice_string();
 
-	set_cstring();
+	set_string();
+
+	replace_string();
 
 	destroy_string();
 

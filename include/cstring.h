@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #include "Cruzer-S/cmacro/cmacro.h"
 
@@ -64,7 +65,13 @@ CString cstring_append_string(CString , char *);
 	default: NULL					\
 )(A, B))
 
+#define cstring_get(...) EXCONCAT(cstring_get_, NARGS(__VA_ARGS__))(__VA_ARGS__)
+#define cstring_get_1 cstring_get
+#define cstring_get_2 cstring_get_at
 char *cstring_get(CString );
+char cstring_get_at(CString, size_t );
+
+ptrdiff_t cstring_index(CString, char );
 
 CString cstring_set(CString, CString );
 CString cstring_set_to_string(CString, char *);
@@ -75,6 +82,8 @@ CString cstring_set_to_string(CString, char *);
 )(A, B))
 
 CString cstring_slice(CString , size_t , size_t );
+
+CString cstring_replace(CString , const char *, char );
 
 void cstring_destroy(CString );
 
