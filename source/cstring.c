@@ -260,6 +260,15 @@ void cstring_destroy(CString cstring)
 	free(cstring);
 }
 
+char *cstring_destroy_only(CString cstring)
+{
+	char *ret = cstring->string;
+
+	free(cstring);
+
+	return ret;
+}
+
 size_t cstring_length(CString cstring)
 {
 	return cstring->length - 1;

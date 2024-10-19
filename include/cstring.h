@@ -94,6 +94,7 @@ CString cstring_insert_cstring(CString, size_t , CString );
 )(A, L, B))
 
 void cstring_destroy(CString );
+char *cstring_destroy_only(CString );
 
 size_t cstring_length(CString );
 
