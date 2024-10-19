@@ -75,6 +75,13 @@ void insert_string(void)
 	printf("%s\n", cstring_get(cstr2));
 }
 
+void trim_string(void)
+{
+	printf("%s\n", cstring_get(cstr1));
+	assert ( cstring_trim(cstr1, 2, 6) );
+	printf("%s\n", cstring_get(cstr1));
+}
+
 int main(void)
 {
 	create_cstring();
@@ -90,6 +97,8 @@ int main(void)
 	replace_string();
 
 	insert_string();
+
+	trim_string();
 
 	destroy_string();
 

@@ -82,6 +82,7 @@ CString cstring_set_to_string(CString, char *);
 )(A, B))
 
 CString cstring_slice(CString , size_t start, size_t end);
+CString cstring_trim(CString , size_t start, size_t end);
 
 CString cstring_replace(CString , const char *pattern, char replace);
 

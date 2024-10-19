@@ -255,6 +255,19 @@ CString cstring_slice(CString cstring, size_t start, size_t end)
 	return cstring;
 }
 
+CString cstring_trim(CString cstring, size_t start, size_t end)
+{
+	size_t trim_len = end - start;
+
+	memmove(&cstring->string[start], &cstring->string[end],
+	 	cstring->length - end);
+	
+	cstring->length = cstring->length - trim_len;
+	cstring->string[cstring->length] = '\0';
+
+	return cstring;
+}
+
 void cstring_destroy(CString cstring)
 {
 	free(cstring->string);
