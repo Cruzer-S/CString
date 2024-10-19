@@ -81,12 +81,12 @@ CString cstring_set_to_string(CString, char *);
 	default: NULL					\
 )(A, B))
 
-CString cstring_slice(CString , size_t , size_t );
+CString cstring_slice(CString , size_t start, size_t end);
 
-CString cstring_replace(CString , const char *, char );
+CString cstring_replace(CString , const char *pattern, char replace);
 
-CString cstring_insert_string(CString, size_t , char *);
-CString cstring_insert_cstring(CString, size_t , CString );
+CString cstring_insert_string(CString, size_t index, char *insert);
+CString cstring_insert_cstring(CString, size_t index, CString insert);
 #define cstring_insert(A, L, B) (_Generic((B),		\
 	CString: cstring_insert_cstring,		\
 	char *: cstring_insert_string,			\
