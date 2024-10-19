@@ -4,6 +4,7 @@
 #undef cstring_compare
 #undef cstring_append
 #undef cstring_set
+#undef cstring_insert
 
 #include <stdio.h>
 #include <string.h>
@@ -292,4 +293,50 @@ CString cstring_replace(CString cstring, const char *pattern, char replace)
 	cstring->string[cstring->length] = '\0';
 
 	return cstring;
+}
+CString cstring_insert_cstring(CString cstring, size_t idx, CString insert)
+{
+	return cstring_insert_string(cstring, idx, insert->string);
+}
+
+CString cstring_insert_string(CString cstring, size_t idx, char *insert)
+{
+	size_t ins_len = strlen(insert);
+	size_t total_len = (cstring->length - 1) + ins_len;
+	bool is_token = false;
+
+	if (IS_COLLAPSED(cstring->string, insert, cstring->length)) {
+		char *new_insert = malloc(ins_len + 1);
+		if (new_insert == NULL)
+			goto RETURN_NULL;
+
+		memcpy(new_insert, insert, ins_len + 1);
+		insert = new_insert;
+
+		is_token = true;
+	}
+
+	if (cstring->allocate < total_len) {
+		char *new_string = realloc(
+			cstring->string, GET_ALLOC_SIZE(total_len)
+		);
+
+		if (new_string == NULL)
+			goto FREE_INSERT;
+
+		cstring->string = new_string;
+	}
+	
+	memmove(&cstring->string[idx] + ins_len,
+	 	&cstring->string[idx], (cstring->length - idx));
+
+	memcpy(&cstring->string[idx], insert, ins_len);
+	cstring->length = total_len;
+
+	if (is_token) free(insert);
+
+	return cstring;
+
+FREE_INSERT:	if (is_token) free(insert);
+RETURN_NULL:	return NULL;
 }

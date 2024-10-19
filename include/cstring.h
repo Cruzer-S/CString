@@ -85,6 +85,14 @@ CString cstring_slice(CString , size_t , size_t );
 
 CString cstring_replace(CString , const char *, char );
 
+CString cstring_insert_string(CString, size_t , char *);
+CString cstring_insert_cstring(CString, size_t , CString );
+#define cstring_insert(A, L, B) (_Generic((B),		\
+	CString: cstring_insert_cstring,		\
+	char *: cstring_insert_string,			\
+	default: NULL					\
+)(A, L, B))
+
 void cstring_destroy(CString );
 
 size_t cstring_length(CString );

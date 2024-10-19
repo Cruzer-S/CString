@@ -63,6 +63,18 @@ void replace_string(void)
 	assert ( !cstring_compare(cstring_replace(cstr3, "o", '0'), "hell0 w0rld!") );
 }
 
+void insert_string(void)
+{
+	printf("%s\n", cstring_get(cstr1));
+	printf("%s\n", cstring_get(cstr2));
+
+	assert ( cstring_insert(cstr1, 2, "good") );
+	assert ( cstring_insert(cstr2, 5, cstr3) );
+
+	printf("%s\n", cstring_get(cstr1));
+	printf("%s\n", cstring_get(cstr2));
+}
+
 int main(void)
 {
 	create_cstring();
@@ -76,6 +88,8 @@ int main(void)
 	set_string();
 
 	replace_string();
+
+	insert_string();
 
 	destroy_string();
 
