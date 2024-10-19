@@ -250,6 +250,7 @@ CString cstring_slice(CString cstring, size_t start, size_t end)
 	memmove(cstring->string, &cstring->string[start], end - start);
 
 	cstring->string[end - start] = '\0';
+	cstring->length = end - start;
 
 	return cstring;
 }
