@@ -356,6 +356,8 @@ CString cstring_insert_string(CString cstring, size_t idx, char *insert)
 	memcpy(&cstring->string[idx], insert, ins_len);
 	cstring->length = total_len;
 
+	cstring->string[cstring->length] = '\0';
+
 	if (is_token) free(insert);
 
 	return cstring;
